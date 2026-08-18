@@ -1,7 +1,10 @@
+from app.models.cliente import Cliente
+
 from decimal import Decimal
 
 import pytest
 
+from app.database.cliente_repository import ClienteRepository
 from app.services.cliente_service import ClienteService
 from app.services.conta_service import ContaService
 
@@ -342,3 +345,246 @@ def test_consultar_extrato(banco_teste):
     assert extrato["transacoes"][1]["tipo"] == (
         "DEPOSITO"
     )
+def test_transferencia_com_sucesso(banco_teste):
+    service, conta_origem_id = criar_conta_teste()
+
+    cliente_repository = ClienteRepository()
+    cliente_id = cliente_repository.criar(
+        Cliente(
+            nome="Cliente Destino",
+            cpf="55555555555",
+            idade=30
+        )
+    )
+
+    conta_destino_id = service.criar_conta(
+        cliente_id=cliente_id,
+        saldo_inicial=Decimal("100.00"),
+        limite=Decimal("500.00")
+    )
+
+    service.transferir(
+        conta_origem_id,
+        conta_destino_id,
+        Decimal("50.00")
+    )
+
+    saldo_origem = service.consultar_saldo(
+        conta_origem_id
+    )
+
+    saldo_destino = service.consultar_saldo(
+        conta_destino_id
+    )
+
+    assert saldo_origem == Decimal("50.00")
+    assert saldo_destino == Decimal("150.00")
+
+
+def test_transferencia_cria_duas_transacoes(
+    banco_teste
+):
+    service, conta_origem_id = criar_conta_teste()
+
+    cliente_repository = ClienteRepository()
+
+    cliente_id = cliente_repository.criar(
+        Cliente(
+            nome="Cliente Destino",
+            cpf="66666666666",
+            idade=30
+        )
+    )
+
+    conta_destino_id = service.criar_conta(
+        cliente_id=cliente_id,
+        saldo_inicial=Decimal("100.00"),
+        limite=Decimal("500.00")
+    )
+
+    service.transferir(
+        conta_origem_id,
+        conta_destino_id,
+        Decimal("50.00")
+    )
+
+    transacoes_origem = service.listar_transacoes(
+        conta_origem_id
+    )
+
+    transacoes_destino = service.listar_transacoes(
+        conta_destino_id
+    )
+
+    assert len(transacoes_origem) == 1
+    assert len(transacoes_destino) == 1
+
+    assert transacoes_origem[0]["tipo"] == (
+        "TRANSFERENCIA_ENVIADA"
+    )
+
+    assert transacoes_destino[0]["tipo"] == (
+        "TRANSFERENCIA_RECEBIDA"
+    )
+
+
+def test_transferencia_zero_deve_gerar_erro(
+    banco_teste
+):
+    service, conta_origem_id = criar_conta_teste()
+
+    cliente_repository = ClienteRepository()
+
+    cliente_id = cliente_repository.criar(
+        Cliente(
+            nome="Cliente Destino",
+            cpf="77777777777",
+            idade=30
+        )
+    )
+
+    conta_destino_id = service.criar_conta(
+        cliente_id=cliente_id
+    )
+
+    try:
+        service.transferir(
+            conta_origem_id,
+            conta_destino_id,
+            Decimal("0.00")
+        )
+
+        assert False, (
+            "Era esperado erro para transferência zero."
+        )
+
+    except ValueError as erro:
+        assert "maior que zero" in str(erro)
+
+
+def test_transferencia_negativa_deve_gerar_erro(
+    banco_teste
+):
+    service, conta_origem_id = criar_conta_teste()
+
+    cliente_repository = ClienteRepository()
+
+    cliente_id = cliente_repository.criar(
+        Cliente(
+            nome="Cliente Destino",
+            cpf="88888888888",
+            idade=30
+        )
+    )
+
+    conta_destino_id = service.criar_conta(
+        cliente_id=cliente_id
+    )
+
+    try:
+        service.transferir(
+            conta_origem_id,
+            conta_destino_id,
+            Decimal("-10.00")
+        )
+
+        assert False, (
+            "Era esperado erro para transferência negativa."
+        )
+
+    except ValueError as erro:
+        assert "maior que zero" in str(erro)
+
+
+def test_transferencia_conta_origem_inexistente(
+    banco_teste
+):
+    service, conta_destino_id = criar_conta_teste()
+
+    try:
+        service.transferir(
+            999,
+            conta_destino_id,
+            Decimal("50.00")
+        )
+
+        assert False, (
+            "Era esperado erro para conta de origem inexistente."
+        )
+
+    except ValueError as erro:
+        assert "origem" in str(erro).lower()
+
+
+def test_transferencia_conta_destino_inexistente(
+    banco_teste
+):
+    service, conta_origem_id = criar_conta_teste()
+
+    try:
+        service.transferir(
+            conta_origem_id,
+            999,
+            Decimal("50.00")
+        )
+
+        assert False, (
+            "Era esperado erro para conta de destino inexistente."
+        )
+
+    except ValueError as erro:
+        assert "destino" in str(erro).lower()
+
+
+def test_transferencia_para_mesma_conta(
+    banco_teste
+):
+    service, conta_id = criar_conta_teste()
+
+    try:
+        service.transferir(
+            conta_id,
+            conta_id,
+            Decimal("50.00")
+        )
+
+        assert False, (
+            "Era esperado erro ao transferir para a própria conta."
+        )
+
+    except ValueError as erro:
+        assert "diferentes" in str(erro)
+
+
+def test_transferencia_acima_do_disponivel(
+    banco_teste
+):
+    service, conta_origem_id = criar_conta_teste()
+
+    cliente_repository = ClienteRepository()
+
+    cliente_id = cliente_repository.criar(
+        Cliente(
+            nome="Cliente Destino",
+            cpf="99999999999",
+            idade=30
+        )
+    )
+
+    conta_destino_id = service.criar_conta(
+        cliente_id=cliente_id
+    )
+
+    try:
+        service.transferir(
+            conta_origem_id,
+            conta_destino_id,
+            Decimal("601.00")
+        )
+
+        assert False, (
+            "Era esperado erro por falta de saldo e limite."
+        )
+
+    except ValueError as erro:
+        assert "insuficientes" in str(erro).lower()

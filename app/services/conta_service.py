@@ -13,6 +13,10 @@ class ContaService:
         self.cliente_repository = ClienteRepository()
         self.transacao_repository = TransacaoRepository()
 
+    # =========================================================
+    # CRIAR CONTA
+    # =========================================================
+
     def criar_conta(
         self,
         cliente_id: int,
@@ -20,10 +24,10 @@ class ContaService:
         limite: Decimal = Decimal("500.00")
     ) -> int:
 
-        if not isinstance(cliente_id, int):
-            raise ValueError(
-                "ID do cliente deve ser um número inteiro."
-            )
+        self._validar_id(
+            cliente_id,
+            "ID do cliente"
+        )
 
         cliente = self.cliente_repository.buscar_por_id(
             cliente_id
@@ -58,11 +62,20 @@ class ContaService:
             limite=limite
         )
 
+    # =========================================================
+    # DEPÓSITO
+    # =========================================================
+
     def depositar(
         self,
         conta_id: int,
         valor: Decimal
     ) -> Decimal:
+
+        self._validar_id(
+            conta_id,
+            "ID da conta"
+        )
 
         valor = self._converter_decimal(valor)
 
@@ -120,11 +133,20 @@ class ContaService:
         finally:
             conexao.close()
 
+    # =========================================================
+    # SAQUE
+    # =========================================================
+
     def sacar(
         self,
         conta_id: int,
         valor: Decimal
     ) -> Decimal:
+
+        self._validar_id(
+            conta_id,
+            "ID da conta"
+        )
 
         valor = self._converter_decimal(valor)
 
@@ -193,10 +215,160 @@ class ContaService:
         finally:
             conexao.close()
 
+    # =========================================================
+    # TRANSFERÊNCIA
+    # =========================================================
+
+    def transferir(
+        self,
+        conta_origem_id: int,
+        conta_destino_id: int,
+        valor: Decimal
+    ) -> None:
+
+        self._validar_id(
+            conta_origem_id,
+            "ID da conta de origem"
+        )
+
+        self._validar_id(
+            conta_destino_id,
+            "ID da conta de destino"
+        )
+
+        if conta_origem_id == conta_destino_id:
+            raise ValueError(
+                "A conta de origem e a conta de destino devem ser diferentes."
+            )
+
+        valor = self._converter_decimal(valor)
+
+        if valor <= Decimal("0.00"):
+            raise ValueError(
+                "O valor da transferência deve ser maior que zero."
+            )
+
+        conexao = conectar()
+
+        try:
+            conta_origem = (
+                self.conta_repository.buscar_por_id(
+                    conta_origem_id
+                )
+            )
+
+            if not conta_origem:
+                raise ValueError(
+                    "Conta de origem não encontrada."
+                )
+
+            conta_destino = (
+                self.conta_repository.buscar_por_id(
+                    conta_destino_id
+                )
+            )
+
+            if not conta_destino:
+                raise ValueError(
+                    "Conta de destino não encontrada."
+                )
+
+            saldo_origem_anterior = Decimal(
+                str(conta_origem["saldo"])
+            )
+
+            limite_origem = Decimal(
+                str(conta_origem["limite"])
+            )
+
+            saldo_destino_anterior = Decimal(
+                str(conta_destino["saldo"])
+            )
+
+            disponivel_origem = (
+                saldo_origem_anterior
+                + limite_origem
+            )
+
+            if valor > disponivel_origem:
+                raise ValueError(
+                    "Saldo e limite insuficientes para realizar a transferência."
+                )
+
+            saldo_origem_posterior = (
+                saldo_origem_anterior - valor
+            )
+
+            saldo_destino_posterior = (
+                saldo_destino_anterior + valor
+            )
+
+            origem_atualizada = (
+                self.conta_repository.atualizar_saldo(
+                    conta_origem_id,
+                    saldo_origem_posterior,
+                    conexao=conexao
+                )
+            )
+
+            if not origem_atualizada:
+                raise ValueError(
+                    "Não foi possível atualizar a conta de origem."
+                )
+
+            destino_atualizado = (
+                self.conta_repository.atualizar_saldo(
+                    conta_destino_id,
+                    saldo_destino_posterior,
+                    conexao=conexao
+                )
+            )
+
+            if not destino_atualizado:
+                raise ValueError(
+                    "Não foi possível atualizar a conta de destino."
+                )
+
+            self.transacao_repository.criar(
+                conta_id=conta_origem_id,
+                tipo="TRANSFERENCIA_ENVIADA",
+                valor=valor,
+                saldo_anterior=saldo_origem_anterior,
+                saldo_posterior=saldo_origem_posterior,
+                conexao=conexao
+            )
+
+            self.transacao_repository.criar(
+                conta_id=conta_destino_id,
+                tipo="TRANSFERENCIA_RECEBIDA",
+                valor=valor,
+                saldo_anterior=saldo_destino_anterior,
+                saldo_posterior=saldo_destino_posterior,
+                conexao=conexao
+            )
+
+            conexao.commit()
+
+        except Exception:
+            conexao.rollback()
+            raise
+
+        finally:
+            conexao.close()
+
+    # =========================================================
+    # CONSULTAR SALDO
+    # =========================================================
+
     def consultar_saldo(
         self,
         conta_id: int
     ) -> Decimal:
+
+        self._validar_id(
+            conta_id,
+            "ID da conta"
+        )
 
         conta = self.conta_repository.buscar_por_id(
             conta_id
@@ -211,10 +383,19 @@ class ContaService:
             str(conta["saldo"])
         )
 
+    # =========================================================
+    # CONSULTAR DISPONÍVEL
+    # =========================================================
+
     def consultar_disponivel(
         self,
         conta_id: int
     ) -> Decimal:
+
+        self._validar_id(
+            conta_id,
+            "ID da conta"
+        )
 
         conta = self.conta_repository.buscar_por_id(
             conta_id
@@ -235,10 +416,19 @@ class ContaService:
 
         return saldo + limite
 
+    # =========================================================
+    # BUSCAR CONTA
+    # =========================================================
+
     def buscar_conta(
         self,
         conta_id: int
     ):
+
+        self._validar_id(
+            conta_id,
+            "ID da conta"
+        )
 
         conta = self.conta_repository.buscar_por_id(
             conta_id
@@ -251,10 +441,19 @@ class ContaService:
 
         return conta
 
+    # =========================================================
+    # LISTAR TRANSAÇÕES
+    # =========================================================
+
     def listar_transacoes(
         self,
         conta_id: int
     ):
+
+        self._validar_id(
+            conta_id,
+            "ID da conta"
+        )
 
         conta = self.conta_repository.buscar_por_id(
             conta_id
@@ -269,8 +468,19 @@ class ContaService:
             conta_id
         )
 
+    # =========================================================
+    # CONSULTAR EXTRATO
+    # =========================================================
 
-    def consultar_extrato(self, conta_id: int):
+    def consultar_extrato(
+        self,
+        conta_id: int
+    ):
+
+        self._validar_id(
+            conta_id,
+            "ID da conta"
+        )
 
         conta = self.conta_repository.buscar_por_id(
             conta_id
@@ -316,14 +526,56 @@ class ContaService:
             "total_transacoes": len(transacoes)
         }
 
-    @staticmethod
-    def _converter_decimal(valor: Decimal) -> Decimal:
+    # =========================================================
+    # VALIDAÇÃO DE ID
+    # =========================================================
 
-        try:
-            valor = Decimal(str(valor))
-        except (InvalidOperation, ValueError, TypeError):
+    @staticmethod
+    def _validar_id(
+        valor,
+        nome: str
+    ) -> None:
+
+        if isinstance(valor, bool) or not isinstance(valor, int):
             raise ValueError(
-                "Valor monetário inválido."
+                f"{nome} deve ser um número inteiro."
             )
 
-        return valor.quantize(Decimal("0.01"))
+        if valor <= 0:
+            raise ValueError(
+                f"{nome} deve ser maior que zero."
+            )
+
+    # =========================================================
+    # CONVERSÃO MONETÁRIA
+    # =========================================================
+
+    @staticmethod
+    def _converter_decimal(
+        valor
+    ) -> Decimal:
+
+        try:
+            decimal = Decimal(str(valor))
+
+            if not decimal.is_finite():
+                raise ValueError(
+                    "Valor monetário inválido."
+                )
+
+            return decimal.quantize(
+                Decimal("0.01")
+            )
+
+        except (
+            InvalidOperation,
+            ValueError,
+            TypeError
+        ) as erro:
+
+            if str(erro) == "Valor monetário inválido.":
+                raise
+
+            raise ValueError(
+                "Valor monetário inválido."
+	 ) from erro
