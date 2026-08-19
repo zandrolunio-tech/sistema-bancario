@@ -588,3 +588,82 @@ def test_transferencia_acima_do_disponivel(
 
     except ValueError as erro:
         assert "insuficientes" in str(erro).lower()
+def test_transferencia_rollback_em_falha(
+    banco_teste,
+    monkeypatch
+):
+    service, conta_origem_id = criar_conta_teste()
+
+    cliente_repository = ClienteRepository()
+
+    cliente_id = cliente_repository.criar(
+        Cliente(
+            nome="Cliente Destino",
+            cpf="12312312345",
+            idade=30
+        )
+    )
+
+    conta_destino_id = service.criar_conta(
+        cliente_id=cliente_id,
+        saldo_inicial=Decimal("100.00"),
+        limite=Decimal("500.00")
+    )
+
+    chamadas = 0
+
+    criar_original = service.transacao_repository.criar
+
+    def criar_com_falha(*args, **kwargs):
+        nonlocal chamadas
+
+        chamadas += 1
+
+        if chamadas == 2:
+            raise RuntimeError(
+                "Falha simulada ao registrar transação."
+            )
+
+        return criar_original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        service.transacao_repository,
+        "criar",
+        criar_com_falha
+    )
+
+    try:
+        service.transferir(
+            conta_origem_id,
+            conta_destino_id,
+            Decimal("50.00")
+        )
+
+        assert False, (
+            "Era esperado erro durante a transferência."
+        )
+
+    except RuntimeError as erro:
+        assert "Falha simulada" in str(erro)
+
+    saldo_origem = service.consultar_saldo(
+        conta_origem_id
+    )
+
+    saldo_destino = service.consultar_saldo(
+        conta_destino_id
+    )
+
+    assert saldo_origem == Decimal("100.00")
+    assert saldo_destino == Decimal("100.00")
+
+    transacoes_origem = service.listar_transacoes(
+        conta_origem_id
+    )
+
+    transacoes_destino = service.listar_transacoes(
+        conta_destino_id
+    )
+
+    assert len(transacoes_origem) == 0
+    assert len(transacoes_destino) == 0
