@@ -667,3 +667,173 @@ def test_transferencia_rollback_em_falha(
 
     assert len(transacoes_origem) == 0
     assert len(transacoes_destino) == 0
+def test_validar_id_zero():
+    with pytest.raises(ValueError, match="maior que zero"):
+        ContaService._validar_id(
+            0,
+            "ID da conta"
+        )
+
+
+def test_validar_id_negativo():
+    with pytest.raises(ValueError, match="maior que zero"):
+        ContaService._validar_id(
+            -1,
+            "ID da conta"
+        )
+
+
+def test_validar_id_string():
+    with pytest.raises(ValueError, match="número inteiro"):
+        ContaService._validar_id(
+            "1",
+            "ID da conta"
+        )
+
+
+def test_validar_id_float():
+    with pytest.raises(ValueError, match="número inteiro"):
+        ContaService._validar_id(
+            1.5,
+            "ID da conta"
+        )
+
+
+def test_validar_id_booleano():
+    with pytest.raises(ValueError, match="número inteiro"):
+        ContaService._validar_id(
+            True,
+            "ID da conta"
+        )
+
+
+def test_converter_decimal_inteiro():
+    resultado = ContaService._converter_decimal(100)
+
+    assert resultado == Decimal("100.00")
+
+
+def test_converter_decimal_string():
+    resultado = ContaService._converter_decimal(
+        "150.50"
+    )
+
+    assert resultado == Decimal("150.50")
+
+
+def test_converter_decimal_arredonda_centavos():
+    resultado = ContaService._converter_decimal(
+        "10.555"
+    )
+
+    assert resultado == Decimal("10.56")
+
+
+def test_converter_decimal_valor_invalido():
+    with pytest.raises(
+        ValueError,
+        match="Valor monetário inválido"
+    ):
+        ContaService._converter_decimal("abc")
+
+
+def test_converter_decimal_none():
+    with pytest.raises(
+        ValueError,
+        match="Valor monetário inválido"
+    ):
+        ContaService._converter_decimal(None)
+
+
+def test_converter_decimal_nan():
+    with pytest.raises(
+        ValueError,
+        match="Valor monetário inválido"
+    ):
+        ContaService._converter_decimal("NaN")
+
+
+def test_converter_decimal_infinito():
+    with pytest.raises(
+        ValueError,
+        match="Valor monetário inválido"
+    ):
+        ContaService._converter_decimal("Infinity")
+def test_deposito_rollback_em_falha(
+    banco_teste,
+    monkeypatch
+):
+    service, conta_id = criar_conta_teste()
+
+    criar_original = service.transacao_repository.criar
+
+    def criar_com_falha(*args, **kwargs):
+        raise RuntimeError(
+            "Falha simulada ao registrar depósito."
+        )
+
+    monkeypatch.setattr(
+        service.transacao_repository,
+        "criar",
+        criar_com_falha
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Falha simulada"
+    ):
+        service.depositar(
+            conta_id,
+            Decimal("50.00")
+        )
+
+    saldo = service.consultar_saldo(
+        conta_id
+    )
+
+    assert saldo == Decimal("100.00")
+
+    transacoes = service.listar_transacoes(
+        conta_id
+    )
+
+    assert len(transacoes) == 0
+
+
+def test_saque_rollback_em_falha(
+    banco_teste,
+    monkeypatch
+):
+    service, conta_id = criar_conta_teste()
+
+    def criar_com_falha(*args, **kwargs):
+        raise RuntimeError(
+            "Falha simulada ao registrar saque."
+        )
+
+    monkeypatch.setattr(
+        service.transacao_repository,
+        "criar",
+        criar_com_falha
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Falha simulada"
+    ):
+        service.sacar(
+            conta_id,
+            Decimal("50.00")
+        )
+
+    saldo = service.consultar_saldo(
+        conta_id
+    )
+
+    assert saldo == Decimal("100.00")
+
+    transacoes = service.listar_transacoes(
+        conta_id
+    )
+
+    assert len(transacoes) == 0
