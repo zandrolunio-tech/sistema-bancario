@@ -837,3 +837,81 @@ def test_saque_rollback_em_falha(
     )
 
     assert len(transacoes) == 0
+def test_validar_id_booleano():
+    with pytest.raises(
+        ValueError,
+        match="número inteiro"
+    ):
+        ContaService._validar_id(
+            True,
+            "ID da conta"
+        )
+
+
+def test_validar_id_none():
+    with pytest.raises(
+        ValueError,
+        match="número inteiro"
+    ):
+        ContaService._validar_id(
+            None,
+            "ID da conta"
+        )
+
+
+def test_converter_decimal_inteiro():
+    valor = ContaService._converter_decimal(100)
+
+    assert valor == Decimal("100.00")
+
+
+def test_converter_decimal_string():
+    valor = ContaService._converter_decimal("150.50")
+
+    assert valor == Decimal("150.50")
+
+
+def test_converter_decimal_arredonda_centavos():
+    valor = ContaService._converter_decimal("100.126")
+
+    assert valor == Decimal("100.13")
+
+
+def test_converter_decimal_valor_invalido():
+    with pytest.raises(
+        ValueError,
+        match="Valor monetário inválido."
+    ):
+        ContaService._converter_decimal(
+            "abc"
+        )
+
+
+def test_converter_decimal_none():
+    with pytest.raises(
+        ValueError,
+        match="Valor monetário inválido."
+    ):
+        ContaService._converter_decimal(
+            None
+        )
+
+
+def test_converter_decimal_nan():
+    with pytest.raises(
+        ValueError,
+        match="Valor monetário inválido."
+    ):
+        ContaService._converter_decimal(
+            Decimal("NaN")
+        )
+
+
+def test_converter_decimal_infinito():
+    with pytest.raises(
+        ValueError,
+        match="Valor monetário inválido."
+    ):
+        ContaService._converter_decimal(
+            Decimal("Infinity")
+        )
