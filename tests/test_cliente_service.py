@@ -115,3 +115,86 @@ def test_listar_clientes(banco_teste):
     assert len(clientes) == 2
     assert clientes[0]["nome"] == "Cliente Um"
     assert clientes[1]["nome"] == "Cliente Dois"
+def test_nome_vazio_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.cadastrar_cliente(
+            nome="   ",
+            cpf="77777777777",
+            idade=25
+        )
+
+        assert False, (
+            "Era esperado erro para nome vazio."
+        )
+
+    except ValueError as erro:
+        assert str(erro) == "Nome é obrigatório."
+
+
+def test_cpf_com_letras_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.cadastrar_cliente(
+            nome="Cliente Teste",
+            cpf="1234567890A",
+            idade=25
+        )
+
+        assert False, (
+            "Era esperado erro para CPF com letras."
+        )
+
+    except ValueError as erro:
+        assert (
+            str(erro)
+            == "CPF deve conter apenas números."
+        )
+
+
+def test_buscar_cpf_inexistente(banco_teste):
+    service = ClienteService()
+
+    cliente = service.buscar_por_cpf(
+        "88888888888"
+    )
+
+    assert cliente is None
+
+
+def test_buscar_cpf_com_letras_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.buscar_por_cpf(
+            "1234567890A"
+        )
+
+        assert False, (
+            "Era esperado erro para CPF com letras."
+        )
+
+    except ValueError as erro:
+        assert (
+            str(erro)
+            == "CPF deve conter apenas números."
+        )
+def test_buscar_cpf_com_tamanho_invalido_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.buscar_por_cpf(
+            "123456789"
+        )
+
+        assert False, (
+            "Era esperado erro para CPF com tamanho inválido."
+        )
+
+    except ValueError as erro:
+        assert (
+            str(erro)
+            == "CPF deve possuir 11 números."
+        )
