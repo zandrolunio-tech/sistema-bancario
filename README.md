@@ -186,10 +186,10 @@ pytest -v
 
 ### Resultado atual
 
-O projeto possui **25 testes automatizados**, todos passando:
+O projeto possui **91 testes automatizados**, todos passando:
 
 ```text
-25 passed
+91 passed
 ```
 
 Os testes cobrem:
@@ -300,5 +300,5 @@ Possíveis evoluções do sistema:
 * Limites: OK
 * Transações: OK
 * Extrato: OK
-* Testes automatizados: 25/25 passando
+* Testes automatizados: 91/91 passando
 * Git: configurado
