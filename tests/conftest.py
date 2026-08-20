@@ -59,6 +59,7 @@ def banco_teste(monkeypatch, tmp_path):
     def conectar_teste():
         conexao = sqlite3.connect(banco)
         conexao.row_factory = sqlite3.Row
+        conexao.execute("PRAGMA foreign_keys = ON")
         return conexao
 
     monkeypatch.setattr(
