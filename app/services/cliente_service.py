@@ -32,6 +32,11 @@ class ClienteService:
                 "CPF deve possuir 11 números."
             )
 
+        if isinstance(idade, bool) or not isinstance(idade, int):
+            raise ValueError(
+                "Idade deve ser um número inteiro."
+            )
+
         if idade < 18:
             raise ValueError(
                 "Cliente deve possuir pelo menos 18 anos."

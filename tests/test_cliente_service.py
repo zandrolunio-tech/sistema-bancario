@@ -198,3 +198,109 @@ def test_buscar_cpf_com_tamanho_invalido_deve_gerar_erro(banco_teste):
             str(erro)
             == "CPF deve possuir 11 números."
         )
+def test_idade_18_anos_deve_ser_valida(banco_teste):
+    service = ClienteService()
+
+    cliente_id = service.cadastrar_cliente(
+        nome="Cliente Maior",
+        cpf="99999999999",
+        idade=18
+    )
+
+    assert cliente_id == 1
+
+
+def test_idade_zero_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.cadastrar_cliente(
+            nome="Cliente Teste",
+            cpf="10101010101",
+            idade=0
+        )
+
+        assert False, (
+            "Era esperado erro para idade zero."
+        )
+
+    except ValueError as erro:
+        assert (
+            str(erro)
+            == "Cliente deve possuir pelo menos 18 anos."
+        )
+
+
+def test_idade_negativa_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.cadastrar_cliente(
+            nome="Cliente Teste",
+            cpf="20202020202",
+            idade=-1
+        )
+
+        assert False, (
+            "Era esperado erro para idade negativa."
+        )
+
+    except ValueError as erro:
+        assert (
+            str(erro)
+            == "Cliente deve possuir pelo menos 18 anos."
+        )
+
+
+def test_idade_string_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.cadastrar_cliente(
+            nome="Cliente Teste",
+            cpf="30303030303",
+            idade="18"
+        )
+
+        assert False, (
+            "Era esperado erro para idade inválida."
+        )
+
+    except (ValueError, TypeError) as erro:
+        assert erro is not None
+
+
+def test_idade_float_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.cadastrar_cliente(
+            nome="Cliente Teste",
+            cpf="40404040404",
+            idade=18.5
+        )
+
+        assert False, (
+            "Era esperado erro para idade inválida."
+        )
+
+    except (ValueError, TypeError) as erro:
+        assert erro is not None
+
+
+def test_idade_booleano_deve_gerar_erro(banco_teste):
+    service = ClienteService()
+
+    try:
+        service.cadastrar_cliente(
+            nome="Cliente Teste",
+            cpf="50505050505",
+            idade=True
+        )
+
+        assert False, (
+            "Era esperado erro para idade inválida."
+        )
+
+    except (ValueError, TypeError) as erro:
+        assert erro is not None
